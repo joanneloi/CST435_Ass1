@@ -8,7 +8,7 @@ Examples:
 #>
 param(
     [string]$Sizes = '100000,1000000,5000000,10000000',
-    [string]$Threads = '1,2,4',
+    [string]$Threads = '1,2,4,8',
     [int]$Repeats = 10,
     [int]$K = 5,
     [switch]$Extended,
