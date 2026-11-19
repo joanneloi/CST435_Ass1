@@ -1,0 +1,45 @@
+{
+  "description": "Actual NYC TLC yellow taxi trip records from user uploaded 2025 Jan-Apr Parquet; NO GENERATED RECORDS",
+  "original_rows_total": 15168579,
+  "original_rows_by_file": {
+    "yellow_tripdata_2025-01.parquet": 3475226,
+    "yellow_tripdata_2025-02.parquet": 3577543,
+    "yellow_tripdata_2025-03.parquet": 4145257,
+    "yellow_tripdata_2025-04.parquet": 3970553
+  },
+  "valid_rows_by_file": {
+    "yellow_tripdata_2025-01.parquet": 3241813,
+    "yellow_tripdata_2025-02.parquet": 3296200,
+    "yellow_tripdata_2025-03.parquet": 3814335,
+    "yellow_tripdata_2025-04.parquet": 3659318
+  },
+  "features": [
+    "trip_distance_miles",
+    "duration_minutes",
+    "fare_amount_usd",
+    "tip_amount_usd"
+  ],
+  "filter": {
+    "distance_miles": "0 < distance <= 200",
+    "duration_min": "1 <= duration <= 240",
+    "fare_usd": "0 < fare <= 1000",
+    "tip_usd": "0 <= tip <= 200",
+    "all": "numeric finite"
+  },
+  "normalization": "Z score based on all valid records",
+  "csv_export": "reproducible metadata + sample export",
+  "valid_rows_total": 14011666,
+  "dropped_rows_total": 1156913,
+  "means": [
+    3.2625051125253806,
+    15.539779061010055,
+    18.617981880243146,
+    3.0525409897718414
+  ],
+  "stds": [
+    4.141290300224061,
+    12.126355131836315,
+    16.202215079208674,
+    3.7542455083078545
+  ]
+}

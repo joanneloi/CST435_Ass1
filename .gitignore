@@ -1,0 +1,9 @@
+build/
+results/taxi/
+data/raw/
+data/*.kmbin
+__pycache__/
+*.exe
+
+.venv/
+.DS_Store
