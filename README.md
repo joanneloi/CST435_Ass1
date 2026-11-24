@@ -58,14 +58,15 @@ clang++ -std=c++17 -O3 -pthread algorithms/kmeans.cpp algorithms/pthreads.cpp -o
 
 ## 3. Preprocessed datasets
 
-Place these preprocessed files in `data/` before running the benchmark. The repository ignores `.kmbin` files, so a GitHub clone needs a separate copy of the dataset files.
+Download the preprocessed `.kmbin` files from the [GitHub dataset release](https://github.com/joanneloi/CST435_Ass1/releases/tag/taxi-datasets-v1) and place them in `data/`. The default benchmark uses the first four files. The full dataset is also available.
 
-| Trips | File |
+| Trips | Download |
 |---:|---|
-| 100,000 | `data/taxi_100000.kmbin` |
-| 1,000,000 | `data/taxi_1000000.kmbin` |
-| 5,000,000 | `data/taxi_5000000.kmbin` |
-| 10,000,000 | `data/taxi_10000000.kmbin` |
+| 100,000 | [taxi_100000.kmbin](https://github.com/joanneloi/CST435_Ass1/releases/download/taxi-datasets-v1/taxi_100000.kmbin) |
+| 1,000,000 | [taxi_1000000.kmbin](https://github.com/joanneloi/CST435_Ass1/releases/download/taxi-datasets-v1/taxi_1000000.kmbin) |
+| 5,000,000 | [taxi_5000000.kmbin](https://github.com/joanneloi/CST435_Ass1/releases/download/taxi-datasets-v1/taxi_5000000.kmbin) |
+| 10,000,000 | [taxi_10000000.kmbin](https://github.com/joanneloi/CST435_Ass1/releases/download/taxi-datasets-v1/taxi_10000000.kmbin) |
+| 14,011,666 | [taxi_all.kmbin](https://github.com/joanneloi/CST435_Ass1/releases/download/taxi-datasets-v1/taxi_all.kmbin) |
 
 Each trip has four standardized features (distance, duration, fare, and tip). The subsets come from 14,011,666 cleaned NYC yellow taxi trips from January through April 2025. Each smaller subset is contained in the next larger one. See [the dataset manifest](data/taxi_manifest.json) for details and [the preview CSV](data/taxi_real_500_preview.csv) for examples in the original units.
 
