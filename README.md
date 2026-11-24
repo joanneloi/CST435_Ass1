@@ -82,7 +82,7 @@ powershell -ExecutionPolicy Bypass -File .\RUN.ps1
 On macOS, run the equivalent benchmark with the virtual environment active:
 
 ```sh
-python benchmark.py --sizes 100000,1000000,5000000,10000000 --threads 1,2,4 --repeats 10 --k 5
+python benchmark.py --sizes 100000,1000000,5000000,10000000 --threads 1,2,4,8 --repeats 10 --k 5
 ```
 
 ### Save a copy of your results
