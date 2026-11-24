@@ -1,0 +1,6 @@
+{
+  "method": "pthreads",
+  "N": 10000000, "K": 5, "D": 4, "threads": 8,
+  "iterations": 43, "converged": true,
+  "iteration_ms": 8921.1324, "transfer_ms": 0, "setup_ms": 0, "total_ms": 9327.7028, "wcss": 9870328.35267374
+}

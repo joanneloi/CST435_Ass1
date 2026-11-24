@@ -1,0 +1,6 @@
+{
+  "method": "sequential",
+  "N": 10000000, "K": 5, "D": 4, "threads": 1,
+  "iterations": 43, "converged": true,
+  "iteration_ms": 17037.9755, "transfer_ms": 0, "setup_ms": 0, "total_ms": 17418.8335, "wcss": 9870328.3526737
+}

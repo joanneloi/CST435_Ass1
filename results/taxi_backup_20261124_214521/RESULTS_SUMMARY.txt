@@ -1,0 +1,27 @@
+CST435: REAL NYC TAXI BENCHMARK RESULTS
+These measurements were performed on actual taxi trips.
+
+openmp      N=   100,000 threads=8 median=   51.5595 ms speedup=  1.386x
+pthreads    N=   100,000 threads=8 median=   45.5735 ms speedup=  1.568x
+sequential  N=   100,000 threads=1 median=   71.4585 ms speedup=  1.000x
+openmp      N= 1,000,000 threads=8 median=  536.8121 ms speedup=  1.571x
+pthreads    N= 1,000,000 threads=8 median=  496.0467 ms speedup=  1.700x
+sequential  N= 1,000,000 threads=1 median=  843.1168 ms speedup=  1.000x
+openmp      N=10,000,000 threads=8 median= 5391.4833 ms speedup=  2.248x
+pthreads    N=10,000,000 threads=8 median= 6102.3520 ms speedup=  1.986x
+sequential  N=10,000,000 threads=1 median=12120.0658 ms speedup=  1.000x
+openmp      N= 5,000,000 threads=8 median= 3343.6472 ms speedup=  1.932x
+pthreads    N= 5,000,000 threads=8 median= 3591.6719 ms speedup=  1.799x
+sequential  N= 5,000,000 threads=1 median= 6461.4344 ms speedup=  1.000x
+
+THREAD SCALING
+Records     Method       Threads   Median (ms)   Speedup
+1,000,000   openmp             1        926.78    0.910x
+1,000,000   pthreads           1        955.34    0.883x
+1,000,000   sequential         1        843.12    1.000x
+1,000,000   openmp             2        659.73    1.278x
+1,000,000   pthreads           2        698.47    1.207x
+1,000,000   openmp             4        528.07    1.597x
+1,000,000   pthreads           4        512.54    1.645x
+1,000,000   openmp             8        536.81    1.571x
+1,000,000   pthreads           8        496.05    1.700x

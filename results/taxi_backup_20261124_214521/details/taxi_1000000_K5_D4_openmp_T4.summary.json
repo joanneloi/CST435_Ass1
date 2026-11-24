@@ -1,0 +1,6 @@
+{
+  "method": "openmp",
+  "N": 1000000, "K": 5, "D": 4, "threads": 4,
+  "iterations": 38, "converged": true,
+  "iteration_ms": 764.5711, "transfer_ms": 0, "setup_ms": 0, "total_ms": 795.1161, "wcss": 987210.096209174
+}
