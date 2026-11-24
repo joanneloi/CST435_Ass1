@@ -142,61 +142,80 @@ def write_csv(path, records):
         w.writerows(records)
 
 
-def make_plots(summary, raw, output, mode):
+def summarize_benchmark(raw):
+    groups=defaultdict(list)
+    for r in raw:
+        groups[(r['dataset'],r['N'],r['K'],r['D'],r['method'],r['threads'])].append(r)
+    summary=[]
+    for key,rows in sorted(groups.items()):
+        dataset,n,k,d,method,t=key
+        ms=[r['iteration_ms'] for r in rows]
+        total=[r['total_ms'] for r in rows]
+        summary.append({'dataset':dataset,'N':n,'K':k,'D':d,'method':method,'threads':t,
+                        'repeats':len(rows),'experiments':rows[0]['experiments'],
+                        'median_iteration_ms':float(np.median(ms)),
+                        'median_total_ms':float(np.median(total)),
+                        'stdev_ms':float(np.std(ms,ddof=1)) if len(ms)>1 else 0.0,
+                        'median_iterations':float(np.median([r['iterations'] for r in rows])),
+                        'median_wcss':float(np.median([r['wcss'] for r in rows]))})
+    baselines={(r['dataset'],r['K'],r['D']):r['median_iteration_ms'] for r in summary if r['method']=='sequential'}
+    for r in summary:
+        base=baselines[(r['dataset'],r['K'],r['D'])]
+        r['speedup']=base/r['median_iteration_ms']
+        r['efficiency_percent']=100*r['speedup']/r['threads'] if r['method'] in ('openmp','pthreads') else ''
+    return summary
+
+
+def write_results_summary(summary, output):
+    summary_lines = ['CST435: REAL NYC TAXI BENCHMARK RESULTS',
+                     'These measurements were performed on actual taxi trips.',
+                     '']
+    for r in summary:
+        if 'dataset_scaling' in r['experiments'].split(';'):
+            summary_lines.append(f'{r["method"]:11} N={r["N"]:>10,} threads={r["threads"]} '
+                                 f'median={r["median_iteration_ms"]:>10.4f} ms '
+                                 f'speedup={r["speedup"]:>7.3f}x')
+    thread_rows = [r for r in summary
+                   if 'thread_scaling' in r['experiments'].split(';')]
+    if thread_rows:
+        summary_lines.extend(['', 'THREAD SCALING', 'Records     Method       Threads   Median (ms)   Speedup'])
+        for r in sorted(thread_rows, key=lambda row: (row['N'], row['threads'], row['method'])):
+            summary_lines.append(f'{r["N"]:>9,}   {r["method"]:11}  {r["threads"]:>7}   '
+                                 f'{r["median_iteration_ms"]:>11.2f}   {r["speedup"]:>6.3f}x')
+    (output/'RESULTS_SUMMARY.txt').write_text('\n'.join(summary_lines)+'\n',encoding='utf-8')
+
+
+def plot_clusters(trips, centers, labels, dataset_size, output):
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
-    figs = output/'figures'
-    figs.mkdir(exist_ok=True)
-    expA=[r for r in summary if 'dataset_scaling' in r['experiments'].split(';')]
-    expB=[r for r in summary if 'thread_scaling' in r['experiments'].split(';')]
-    for metric,title,file_name in [
-        ('median_iteration_ms','K-Means computation time','runtime.png'),
-        ('median_total_ms','Total clustering time','total_time.png'),
-        ('speedup','Speedup over sequential','speedup.png')]:
-        fig,ax=plt.subplots(figsize=(8,5))
-        for method in METHODS:
-            points=sorted((r for r in expA if r['method']==method),key=lambda r:r['N'])
-            if points:
-                ax.plot([r['N'] for r in points],[r[metric] for r in points],marker='o',label=method)
-        ax.set_xlabel('Number of real data records')
-        ax.set_ylabel('Time (ms)' if metric!='speedup' else 'Speedup (x)')
-        ax.set_title(title + (' — real taxi data'))
-        if len({r['N'] for r in expA}) > 1:
-            ax.set_xscale('log')
-        ax.grid(alpha=.25)
-        ax.legend()
-        fig.tight_layout();fig.savefig(figs/file_name,dpi=170);plt.close(fig)
-    fig,ax=plt.subplots(figsize=(8,5))
-    for method in ('openmp','pthreads'):
-        points=sorted((r for r in expB if r['method']==method),key=lambda r:r['threads'])
-        if points:
-            ax.plot([r['threads'] for r in points],[r['speedup'] for r in points],marker='o',label=method)
-    ax.plot([1,2,4,8],[1,2,4,8],linestyle='--',alpha=.5,label='ideal speedup')
-    ax.set_xlabel('CPU worker threads');ax.set_ylabel('Speedup (x)')
-    ax.set_title('Strong scaling: OpenMP vs Pthreads');ax.legend();ax.grid(alpha=.25)
-    fig.tight_layout();fig.savefig(figs/'thread_speedup.png',dpi=170);plt.close(fig)
-    fig,ax=plt.subplots(figsize=(8,5))
-    for method in ('openmp','pthreads'):
-        points=sorted((r for r in expB if r['method']==method),key=lambda r:r['threads'])
-        if points:
-            ax.plot([r['threads'] for r in points],[r['efficiency_percent'] for r in points],marker='o',label=method)
-    ax.axhline(100,linestyle='--',alpha=.5,label='ideal 100%')
-    ax.set_xlabel('CPU worker threads');ax.set_ylabel('Efficiency (%)')
-    ax.set_title('CPU parallel efficiency');ax.legend();ax.grid(alpha=.25)
-    fig.tight_layout();fig.savefig(figs/'thread_efficiency.png',dpi=170);plt.close(fig)
-    # A bar chart is easier to read when the demonstration has only ONE input size.
-    max_n = max(r['N'] for r in expA)
-    latest = [r for r in expA if r['N']==max_n]
-    fig,ax=plt.subplots(figsize=(8,5))
-    labels=[r['method']+(f' ({r["threads"]}T)' if r['method'] in ('openmp','pthreads') else '') for r in latest]
-    heights=[r['median_iteration_ms'] for r in latest]
-    ax.bar(labels,heights)
-    ax.set_ylabel('Median computation time (ms)')
-    ax.set_title(f'Method comparison on {max_n:,} REAL records')
-    ax.tick_params(axis='x',rotation=20)
-    ax.grid(axis='y',alpha=.25)
-    fig.tight_layout();fig.savefig(figs/'method_comparison.png',dpi=170);plt.close(fig)
+
+    figures = output / 'figures'
+    figures.mkdir(exist_ok=True)
+    fig, ax = plt.subplots(figsize=(8.4, 5.2), layout='constrained')
+    colors = plt.get_cmap('tab10')
+    for cluster_id, center in enumerate(centers):
+        members = trips[labels == cluster_id]
+        color = colors(cluster_id % colors.N)
+        ax.scatter(members[:, 0], members[:, 1], s=12, alpha=0.35, color=color,
+                   linewidths=0, label=f'Cluster {cluster_id} ({len(members):,})')
+        ax.scatter(center[0], center[1], marker='X', s=110, color=color,
+                   edgecolor='black', linewidth=0.8, zorder=3)
+
+    ax.set_title('K-means clusters')
+    ax.set_xlabel('Trip distance (miles)')
+    ax.set_ylabel('Trip duration (minutes)')
+    ax.scatter([], [], marker='X', s=90, color='#596778', edgecolor='black',
+               label='Cluster center')
+    ax.legend(title=f'{len(trips):,} sampled trips\nDataset: {dataset_size:,} trips',
+              loc='upper left', markerscale=1.4)
+    ax.grid(alpha=0.2)
+    ax.set_axisbelow(True)
+    fig.savefig(figures / 'kmeans_clusters.png', dpi=240, facecolor='white')
+    plt.close(fig)
+
+
+def write_cluster_results(raw, output):
     sample = next((r for r in raw if r['method']=='sequential' and r['dataset']==max(raw, key=lambda x:x['N'])['dataset'] and r['repeat']==1 and 'dataset_scaling' in r['experiments'].split(';')),None)
     if sample:
         sample_path = Path(sample['prefix']+'.sample.csv')
@@ -207,16 +226,6 @@ def make_plots(summary, raw, output, mode):
             manifest=json.loads((DATA/'taxi_manifest.json').read_text(encoding='utf-8'))
             means=manifest.get('means',manifest.get('mean'))
             stds=manifest.get('stds',manifest.get('population_standard_deviation'))
-            # Plot ACTUAL trip distance and minutes, not only standardized coordinates.
-            x_real=values[:,0]*stds[0]+means[0]
-            y_real=values[:,1]*stds[1]+means[1]
-            fig,ax=plt.subplots(figsize=(7.5,5.5))
-            plot=ax.scatter(x_real,y_real,c=values[:,-1],s=5,alpha=.7,cmap='tab10')
-            ax.set_xlabel('Real trip distance (miles)')
-            ax.set_ylabel('Real trip duration (minutes)')
-            ax.set_title(f'Real NYC taxi trips: K-Means clusters (N={sample["N"]:,})')
-            fig.colorbar(plot,ax=ax,label='Cluster ID')
-            fig.tight_layout();fig.savefig(figs/'real_taxi_clusters.png',dpi=190);plt.close(fig)
             # Cluster profiles are inverse-standardized reference centroids.
             centers_csv=Path(sample['prefix']+'.centroids.csv')
             center_values=np.loadtxt(centers_csv,delimiter=',',skiprows=1,ndmin=2)[:,1:]
@@ -231,20 +240,8 @@ def make_plots(summary, raw, output, mode):
                                  'tip_usd':float(center[3]) if len(center)>3 else None,
                                  'sampled_points':int(np.count_nonzero(ids==cluster_id))})
             write_csv(output/'cluster_profiles_real_units.csv',profiles)
-    for experiment,xkey,file_name in [('K_scaling','K','k_scaling.png'),('feature_scaling','D','feature_scaling.png')]:
-        subset = [r for r in summary if experiment in r['experiments'].split(';')]
-        if not subset:
-            continue
-        fig,ax=plt.subplots(figsize=(8,5))
-        for method in METHODS:
-            values=sorted([r for r in subset if r['method']==method],key=lambda r:r[xkey])
-            if values:
-                ax.plot([r[xkey] for r in values],[r['median_iteration_ms'] for r in values],marker='o',label=method)
-        ax.set_xlabel(xkey);ax.set_ylabel('Median computation time (ms)')
-        ax.set_title('Effect of '+('cluster count' if xkey=='K' else 'feature dimensions'))
-        ax.grid(alpha=.25);ax.legend();fig.tight_layout()
-        fig.savefig(figs/file_name,dpi=170);plt.close(fig)
-    print(f'Generated charts: {figs}')
+            trips = values[:, :2] * np.asarray(stds[:2]) + np.asarray(means[:2])
+            plot_clusters(trips, real_centers, ids, sample['N'], output)
 
 
 def benchmark(args, paths):
@@ -298,6 +295,7 @@ def benchmark(args, paths):
     for rep in range(1,args.repeats+1):
         indices=rng.permutation(len(ordered))
         print(f'--- Measured repeat {rep}/{args.repeats} ---',flush=True)
+        print(f'{"Method":<10}  {"Records":>11}  {"Threads":>7}  {"Compute (ms)":>13}  {"WCSS":>14}')
         for j in indices:
             path,k,d,method,t=ordered[int(j)]
             n=read_binary(Path(path)).shape[0]
@@ -307,46 +305,18 @@ def benchmark(args, paths):
             r.update({'dataset':Path(path).name,'experiments':';'.join(sorted(cases[(path,k,d,method,t)])),
                       'repeat':rep,'prefix':str(prefix) if prefix else ''})
             raw.append(r)
-            print(f' {method:10} N={n:>9,} T={t:<2} compute={r["iteration_ms"]:>10.3f} ms WCSS={r["wcss"]:.4f}')
+            print(f'{method:<10}  {n:>11,}  {t:>7}  {r["iteration_ms"]:>13.3f}  {r["wcss"]:>14.4f}')
     write_csv(out/'benchmark_raw.csv',raw)
-    groups=defaultdict(list)
-    for r in raw:
-        groups[(r['dataset'],r['N'],r['K'],r['D'],r['method'],r['threads'])].append(r)
-    summary=[]
-    for key,rows in sorted(groups.items()):
-        dataset,n,k,d,method,t=key
-        ms=[r['iteration_ms'] for r in rows]
-        total=[r['total_ms'] for r in rows]
-        summary.append({'dataset':dataset,'N':n,'K':k,'D':d,'method':method,'threads':t,
-                        'repeats':len(rows),'experiments':rows[0]['experiments'],
-                        'median_iteration_ms':float(np.median(ms)),
-                        'median_total_ms':float(np.median(total)),
-                        'stdev_ms':float(np.std(ms,ddof=1)) if len(ms)>1 else 0.0,
-                        'median_iterations':float(np.median([r['iterations'] for r in rows])),
-                        'median_wcss':float(np.median([r['wcss'] for r in rows]))})
-    baselines={(r['dataset'],r['K'],r['D']):r['median_iteration_ms'] for r in summary if r['method']=='sequential'}
-    for r in summary:
-        base=baselines[(r['dataset'],r['K'],r['D'])]
-        r['speedup']=base/r['median_iteration_ms']
-        r['efficiency_percent']=100*r['speedup']/r['threads'] if r['method'] in ('openmp','pthreads') else ''
+    summary = summarize_benchmark(raw)
     write_csv(out/'benchmark_summary.csv',summary)
-    # Human-readable summary for students who do not use spreadsheet tools.
-    summary_lines = ['CST435: REAL NYC TAXI BENCHMARK RESULTS',
-                     'These measurements were performed on actual taxi trips.',
-                     '']
-    for r in summary:
-        if 'dataset_scaling' in r['experiments'].split(';'):
-            summary_lines.append(f'{r["method"]:11} N={r["N"]:>10,} threads={r["threads"]} '
-                                 f'median={r["median_iteration_ms"]:>10.4f} ms '
-                                 f'speedup={r["speedup"]:>7.3f}x')
-    (out/'RESULTS_SUMMARY.txt').write_text('\n'.join(summary_lines)+'\n',encoding='utf-8')
-    checks=check_quality(raw,out)
-    make_plots(summary,raw,out,"taxi")
+    write_results_summary(summary, out)
+    check_quality(raw,out)
+    write_cluster_results(raw, out)
     print('\n'+'='*65)
     print('COMPLETE — real-data results (NOT synthetic)')
     print(f'Files: {out}')
     print(f'  benchmark_raw.csv | benchmark_summary.csv | correctness.csv')
-    print(f'  figures/runtime.png | figures/speedup.png | figures/real_taxi_clusters.png')
+    print('  figures/kmeans_clusters.png | Run plot_results.py for performance charts')
     print('\nLARGEST DATASET COMPARISON (median computation time):')
     max_n=max(row['N'] for row in summary)
     for row in summary:
@@ -358,7 +328,7 @@ def benchmark(args, paths):
 def main():
     parser=argparse.ArgumentParser(description='CST435 Taxi-only K-Means benchmarking')
     parser.add_argument('--sizes',default='100000,1000000',help='Available prepared REAL taxi dataset sizes')
-    parser.add_argument('--threads',type=lambda s:[int(v) for v in s.split(',')],default=[1,2,4])
+    parser.add_argument('--threads',type=lambda s:[int(v) for v in s.split(',')],default=[1,2,4,8])
     parser.add_argument('--repeats',type=int,default=3)
     parser.add_argument('--all-combinations',action='store_true',
                         help='Run OpenMP and Pthreads at every requested size and thread count')

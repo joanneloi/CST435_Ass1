@@ -10,7 +10,8 @@ This project compares Sequential, OpenMP, and Pthreads implementations of K-Mean
 | `algorithms/openmp.cpp` | OpenMP implementation |
 | `algorithms/pthreads.cpp` | POSIX threads implementation |
 | `algorithms/kmeans.cpp` and `algorithms/kmeans.hpp` | Shared data loading, K-Means logic, timing, and output |
-| `benchmark.py` | Runs each test, checks correctness, summarizes runtimes, and generates plots |
+| `benchmark.py` | Runs benchmarks, checks clustering correctness, and saves results and the K-means cluster plot |
+| `plot_results.py` | Reads saved benchmark summaries to generate performance charts and compare speedups across four computers |
 | `RUN.ps1` | Windows-only runner that builds the three programs and starts the benchmark |
 | `requirements.txt` | Python dependencies |
 | `data/` | Dataset manifest and preview |
@@ -58,20 +59,21 @@ clang++ -std=c++17 -O3 -pthread algorithms/kmeans.cpp algorithms/pthreads.cpp -o
 
 ## 3. Preprocessed datasets
 
-Place these preprocessed files in `data/` before running the benchmark. The repository ignores `.kmbin` files, so a GitHub clone needs a separate copy of the dataset files.
+Download the preprocessed `.kmbin` files from the [GitHub dataset release](https://github.com/joanneloi/CST435_Ass1/releases/tag/taxi-datasets-v1) and place them in `data/`. The default benchmark uses the first four files. The full dataset is also available.
 
-| Trips | File |
+| Trips | Download |
 |---:|---|
-| 100,000 | `data/taxi_100000.kmbin` |
-| 1,000,000 | `data/taxi_1000000.kmbin` |
-| 5,000,000 | `data/taxi_5000000.kmbin` |
-| 10,000,000 | `data/taxi_10000000.kmbin` |
+| 100,000 | [taxi_100000.kmbin](https://github.com/joanneloi/CST435_Ass1/releases/download/taxi-datasets-v1/taxi_100000.kmbin) |
+| 1,000,000 | [taxi_1000000.kmbin](https://github.com/joanneloi/CST435_Ass1/releases/download/taxi-datasets-v1/taxi_1000000.kmbin) |
+| 5,000,000 | [taxi_5000000.kmbin](https://github.com/joanneloi/CST435_Ass1/releases/download/taxi-datasets-v1/taxi_5000000.kmbin) |
+| 10,000,000 | [taxi_10000000.kmbin](https://github.com/joanneloi/CST435_Ass1/releases/download/taxi-datasets-v1/taxi_10000000.kmbin) |
+| 14,011,666 | [taxi_all.kmbin](https://github.com/joanneloi/CST435_Ass1/releases/download/taxi-datasets-v1/taxi_all.kmbin) |
 
 Each trip has four standardized features (distance, duration, fare, and tip). The subsets come from 14,011,666 cleaned NYC yellow taxi trips from January through April 2025. Each smaller subset is contained in the next larger one. See [the dataset manifest](data/taxi_manifest.json) for details and [the preview CSV](data/taxi_real_500_preview.csv) for examples in the original units.
 
 ## 4. Run the benchmark
 
-The current Windows runner defaults use **100K, 1M, 5M, and 10M trips**, **1, 2, and 4 threads**, **5 clusters**, and **10 measured repeats per configuration**. Sequential uses one thread. OpenMP and Pthreads use four threads on every dataset and also test one and two threads on the 1M dataset.
+The current Windows runner defaults use **100K, 1M, 5M, and 10M trips**, **1, 2, 4, and 8 threads**, **5 clusters**, and **10 measured repeats per configuration**. Sequential uses one thread. OpenMP and Pthreads use eight threads on every dataset and also test one, two, and four threads on the 1M dataset.
 
 On Windows, run:
 
@@ -82,18 +84,12 @@ powershell -ExecutionPolicy Bypass -File .\RUN.ps1
 On macOS, run the equivalent benchmark with the virtual environment active:
 
 ```sh
-python benchmark.py --sizes 100000,1000000,5000000,10000000 --threads 1,2,4 --repeats 10 --k 5
+python benchmark.py --sizes 100000,1000000,5000000,10000000 --threads 1,2,4,8 --repeats 10 --k 5
 ```
 
 ### Save a copy of your results
 
 Each benchmark recreates `results/taxi/`. To keep a run, use the command for your operating system from the project folder after it finishes and before starting another benchmark.
-
-**macOS terminal**
-
-```sh
-cp -R results/taxi "results/taxi_backup_$(date +%Y%m%d_%H%M%S)"
-```
 
 **Windows PowerShell**
 
@@ -103,6 +99,12 @@ Copy-Item -Path '.\results\taxi' -Destination ".\results\taxi_backup_$timestamp"
 ```
 
 The copy appears inside `results/` with the date and time in its folder name.
+
+**macOS terminal**
+
+```sh
+cp -R results/taxi "results/taxi_backup_$(date +%Y%m%d_%H%M%S)"
+```
 
 ## 5. Results
 
@@ -114,4 +116,27 @@ The copy appears inside `results/` with the date and time in its folder name.
 | `RESULTS_SUMMARY.txt` | Runtime and speedup summary |
 | `centers_N*_K*_D*.csv` | Shared initial cluster centers |
 | `details/` | Detailed clustering output |
-| `figures/` | Charts for runtime, speedup, thread efficiency, and taxi clusters |
+| `figures/kmeans_clusters.png` | K-means cluster scatter plot |
+
+### Plot results from four computers
+
+Copy each computer's `benchmark_summary.csv` into its own folder. After all four benchmarks finish, run:
+
+```sh
+python plot_results.py results/pc1 results/pc2 results/pc3 results/pc4 --output results/comparison
+```
+
+The script accepts either the folders or the CSV paths. Use `--labels PC1 PC2 PC3 PC4` to name the computers in input order. The default comparison uses 1M records and 4 threads. Set `--records` and `--threads` to use a different shared configuration.
+
+Each PNG uses lines with markers in a 2×2 layout with one panel per computer and shared axes:
+
+- `execution_time_by_dataset_size.png` shows Sequential, OpenMP (8 threads), and Pthreads (8 threads).
+- `execution_time_by_thread_count.png` shows OpenMP and Pthreads execution time by thread count.
+- `thread_speedup.png` shows OpenMP, Pthreads, and ideal speedup through 8 threads.
+- `thread_efficiency.png` shows OpenMP and Pthreads efficiency with a 100% reference line.
+
+The script prints each computer's speedup and the arithmetic mean of the four speedups for each method at the shared configuration.
+
+To generate Figures 7.1, 8.1, 8.2, and 8.3 for a single benchmark, run `python plot_results.py results/taxi`.
+
+Figure 8.1 shows the report’s 377.58 ms sequential reference. Speedup and efficiency use the measured sequential median from each benchmark run in both the charts and the CSV.
